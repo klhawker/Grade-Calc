@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Module Pass Calculator</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 1rem auto;
+      max-width: 600px;
+      line-height: 1.5;
+      background: #f5f5f5;
+      padding: 1rem;
+    }
+    h1 {
+      text-align: center;
+    }
+    .card {
+      background: #fff;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    input[type="number"] {
+      width: 100%;
+      padding: 0.5rem;
+      margin-bottom: 1rem;
+      box-sizing: border-box;
+    }
+    .coursework-item {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 0.5rem;
+    }
+    .coursework-item input[type="number"] {
+      flex: 1;
+      margin-bottom: 0;
+    }
+    button {
+      background: #007bff;
+      color: #fff;
+      border: none;
+      padding: 0.75rem 1.25rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    .results {
+      margin-top: 1.5rem;
+      background: #fff;
+      padding: 1rem;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .result-item {
+      margin-bottom: 1rem;
+    }
+    .notice {
+      font-style: italic;
+      color: #666;
+      margin-bottom: 1rem;
+    }
+    .over-100 {
+      color: red;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>Module Pass Calculator</h1>
+  <div class="card">
+    <label for="examWeight">Exam Weight (as a percentage of overall module):</label>
+    <input type="number" id="examWeight" min="0" max="100" value="60" step="1" />
+
+    <div class="notice">
+      For example, if the exam is worth 60% of the entire module, enter 60 here.
+    </div>
+
+    <hr />
+
+    <label>Coursework Items:</label>
+    <div id="courseworkContainer">
+      <!-- Coursework rows will appear here -->
+    </div>
+    <button type="button" onclick="addCourseworkItem()">Add Coursework</button>
+
+    <hr />
+    <button type="button" onclick="calculateMarks()">Calculate</button>
+  </div>
+
+  <div id="results" class="results" style="display: none;">
+    <h2>Required Exam Marks</h2>
+    <div id="result40" class="result-item"></div>
+    <div id="result60" class="result-item"></div>
+    <div id="result70" class="result-item"></div>
+  </div>
+
+  <script>
+    // Helper function to create a new coursework row
+    function addCourseworkItem(weightVal = 10, markVal = 50) {
+      const container = document.getElementById("courseworkContainer");
+
+      const item = document.createElement("div");
+      item.className = "coursework-item";
+
+      const weightInput = document.createElement("input");
+      weightInput.type = "number";
+      weightInput.min = "0";
+      weightInput.max = "100";
+      weightInput.step = "1";
+      weightInput.value = weightVal;
+      weightInput.placeholder = "Weight (%)";
+
+      const markInput = document.createElement("input");
+      markInput.type = "number";
+      markInput.min = "0";
+      markInput.max = "100";
+      markInput.step = "1";
+      markInput.value = markVal;
+      markInput.placeholder = "Mark (0-100)";
+
+      item.appendChild(weightInput);
+      item.appendChild(markInput);
+      container.appendChild(item);
+    }
+
+    // Add an initial coursework item on load
+    window.addEventListener("load", () => {
+      addCourseworkItem();
+    });
+
+    // Main calculation function
+    function calculateMarks() {
+      const examWeight = parseFloat(document.getElementById("examWeight").value) || 0;
+      const courseworkRows = document.querySelectorAll(".coursework-item");
+
+      // 1. Calculate total coursework contributions
+      //    If a coursework has weight w% and achieved mark m%,
+      //    the contribution is (m/100)*w
+      let courseworkContributions = 0;
+
+      courseworkRows.forEach(row => {
+        const inputs = row.querySelectorAll("input");
+        const cwWeight = parseFloat(inputs[0].value) || 0;
+        const cwMark = parseFloat(inputs[1].value) || 0;
+
+        courseworkContributions += (cwMark / 100) * cwWeight;
+      });
+
+      // We'll define a helper to compute the needed exam mark
+      function examMarkNeeded(target) {
+        // total = courseworkContributions + exam_mark*(examWeight/100)
+        // we want total >= target
+        // => exam_mark = (target - courseworkContributions)*100 / examWeight
+        if (examWeight <= 0) {
+          return 0;
+        }
+        const numerator = target - courseworkContributions;
+        if (numerator <= 0) {
+          // coursework alone is enough
+          return 0;
+        }
+        const needed = (numerator * 100) / examWeight;
+        return needed;
+      }
+
+      // Now for each target, compute the needed exam mark
+      const targets = [40, 60, 70];
+      const resultElements = {
+        40: document.getElementById("result40"),
+        60: document.getElementById("result60"),
+        70: document.getElementById("result70"),
+      };
+
+      targets.forEach(t => {
+        const needed = examMarkNeeded(t);
+        if (needed <= 0) {
+          resultElements[t].innerHTML = 
+            `To get <strong>${t}%</strong> overall, you already have enough from coursework alone.`;
+        } else if (needed > 100) {
+          resultElements[t].innerHTML = 
+            `To get <strong>${t}%</strong> overall, you would need <span class="over-100">>100%</span> in the exam, which is not possible.`;
+        } else {
+          resultElements[t].innerHTML = 
+            `To get <strong>${t}%</strong> overall, you need <strong>${needed.toFixed(2)}%</strong> in the exam.`;
+        }
+      });
+
+      // Show results section
+      document.getElementById("results").style.display = "block";
+    }
+  </script>
+</body>
+</html>
